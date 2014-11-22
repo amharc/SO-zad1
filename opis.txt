@@ -1,0 +1,63 @@
+Systemy operacyjne 2014/2015
+Zadanie 1
+Krzysztof Pszeniczny (kp347208)
+===============================================================================
+
+Pascal <=> W[1] <=> W[2] <=> W[3] <=> ... <=> W[n - 2] <=> W[n - 1] <=> W[n]
+
+Proces W[i] utrzymuje stale informację o i-tym elemencie obecnie liczonego
+przezeń wiersza. Nie wymagam, aby procesy synchronizowały się po każdym
+wierszu, tak więc różne procesy mogą w jednej chwili wyliczać różne wiersze,
+gwarantuję jednak, że przy zakończeniu obliczeń wszystkie procesy przekażą
+procesowi Pascal poprawny wiersz trójkąta Pascala.
+
+Każdy proces utrzymuje 4 deskryptory: komunikacja {na lewo,na prawo} do
+{czytania,pisania}. Wyjątkiem są oczywiście procesy Pascal i W[n], które nie
+posiadają odpowiedniej pary deskryptorów. Nie liczę też standardowych trzech
+deskryptorów (stdin, stdout, stderr).
+
+Ponadto każdy proces zna n (zmienna globalna -- jedyny doń zapis odbywa się
+przez wywołaniem fork) oraz swój numer (otrzymany przy wywołaniu odpowiedniej
+funkcji -- pascal lub worker).
+
+Proces W[i] oczekuje na przekazanie mu przez W[i - 1] obliczonej przezeń
+wartości trójkąta Pascala, po czym aktualizuje swoją i, jeżeli odpowiedni
+warunek jest spełniony, przekazuje swoją nową wartość do procesu W[i + 1].
+Sprawdzanie warunku jest konieczne, gdyż procesy nie wykonują równej liczby
+faz obliczeń: np. ostatni proces będzie uczestniczył tylko przy wyliczaniu
+ostatniego wiersza.
+
+Wartości brzegowe ustalone są następująco: początkowo procesy W[i] trzymają
+wartość 1 jako wartość odpowiedniej kolumny -- proces W[i] zacznie brać udział
+w liczeniu dopiero i-tego wiersza trójkąta Pascala.
+
+Proces Pascal inicjuje wyliczanie wiersza przesyłając 0 do procesu W[1].
+Sprawia to, że proces W[1] cały czas zgodnie z rzeczywistością przechowuje
+liczbę 1.
+
+Informację o końcu obliczeń przekazuję przez zamknięcie końcówki do zapisu
+łącza nienazwanego, tj. proces Pascal po wysłaniu odpowiedniej liczby zer
+zamyka łącze.
+
+Każdy proces, gdy nie powiedzie się już odczyt z lewa, przechodzi do fazy
+wypisywania wyniku, zamykając zapis na prawo (tj. łańcuchowo inicjując
+wypisywanie wyniku wśród dalszych procesów). Następnie pisze on do
+poprzedniego procesu swój wynik, po czym rozpoczyna przekazywanie wyników od
+procesów znajdujących się na prawo do procesu znajdującego się na lewo.
+Zakończenie danych sygnalizowane jest znów zamknięciem końcówki do zapisu
+łącza nienazwanego, które jest propagowane na lewo.
+
+Proces Pascal wypisuje przekazane przez proces W[1] liczby na standardowe
+wyjście, kończąc w momencie napotkania końca pliku w końcówce do odczytu łącza
+nienazwanego.
+
+Liczby przesyłane są w postaci swojej binarnej reprezentacji, tj. 64 bitów.
+(Przechowuję dane w typie uint64_t). Taka reprezentacja jest oczywiście zależna
+od architektury komputera (m.in. little vs big endian), lecz ze względu na
+uruchamianie wszystkich procesów na jednej maszynie (ew. kilku maszynach, lecz
+o tej samej architekturze) nie gra to istotnej roli.
+
+Standard POSIX wymaga, aby PIPE_BUF >= 512 bajtów, zatem oczywiście
+sizeof(uint64_t) = 8 < 512 <= PIPE_BUF, zatem zapis do łącza jest atomowy i
+zapisana zostanie cała liczba, zatem nie muszę weryfikować, czy nastąpił
+jedynie częściowy zapis.
